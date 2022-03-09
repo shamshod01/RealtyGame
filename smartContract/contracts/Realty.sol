@@ -47,7 +47,8 @@ contract Realty is ERC721Enumerable, Ownable {
         _safeMint(msg.sender, supply + 1);
         houses[supply+1] = House(defaultDoor, defaultWindow, 1, 0, 0);
     }
-
+    // TODO: only owner of house could call this function
+    // TODO: handle transferring details of house, house should have default details after selling
     function upgradeWindow(uint256 houseTokenId) public payable {
         uint256 supply = totalSupply();
         Size currentSize = houses[houseTokenId].window.size;
