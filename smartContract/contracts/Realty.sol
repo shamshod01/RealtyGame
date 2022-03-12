@@ -9,16 +9,22 @@ contract Realty is ERC721Enumerable, Ownable {
     mapping(uint256 => Door) public doors;
     mapping(uint256 => Window) public windows;
     mapping(uint256 => House) public houses;
+    mapping(address => uint256[]) public ownedDoors;
+    mapping(address => uint256[]) public ownedWindows;
+    mapping(address => uint256[]) public ownedHouses;
+
 
     enum Size { SMALL, MEDIUM, LARGE }
 
     struct Door {
         uint8 level;
         string color;
+        uint256 houseTokenId;
     }
     struct Window {
         Size size;
         string color;
+        uint256 houseTokenId;
     }
     struct House {
         Door door;
@@ -28,8 +34,8 @@ contract Realty is ERC721Enumerable, Ownable {
         uint256 doorURI;
     }
 
-    Window public defaultWindow = Window(Size.SMALL, "white");
-    Door public defaultDoor = Door(1, "blue");
+    Window public defaultWindow = Window(Size.SMALL, "white", 0);
+    Door public defaultDoor = Door(1, "blue", 0);
 
 
     constructor(
@@ -46,22 +52,41 @@ contract Realty is ERC721Enumerable, Ownable {
         uint256 supply = totalSupply();
         _safeMint(msg.sender, supply + 1);
         houses[supply+1] = House(defaultDoor, defaultWindow, 1, 0, 0);
+        ownedHouses[msg.sender].push(supply+1);
     }
-    // TODO: only owner of house could call this function
     // TODO: handle transferring details of house, house should have default details after selling
+
+    function assignWindowToHouse(uint256 houseTokenId, uint256 windowTokenId) public payable {
+        require(ownerOf(houseTokenId) == msg.sender, "only owner can add");
+        require(ownerOf(windowTokenId) == msg.sender, "only owner can add");
+        houses[houseTokenId].window = windows[windowTokenId];
+        houses[houseTokenId].windowURI = windowTokenId;
+        windows[windowTokenId].houseTokenId = houseTokenId;
+    }
+
+    function removeWindowFromHouse(uint256 houseTokenId, uint256 windowTokenId) public payable {
+        require(ownerOf(houseTokenId) == msg.sender, "only owner can add");
+        require(ownerOf(windowTokenId) == msg.sender, "only owner can add");
+        houses[houseTokenId].window = defaultWindow;
+        houses[houseTokenId].windowURI = 0;
+        windows[windowTokenId].houseTokenId = 0;
+    }
+
     function upgradeWindow(uint256 houseTokenId) public payable {
+        require(ownerOf(houseTokenId) == msg.sender, "only owner can upgrade");
         uint256 supply = totalSupply();
         Size currentSize = houses[houseTokenId].window.size;
         if(currentSize == Size.SMALL) {
             _safeMint(msg.sender, supply + 1);
-            windows[supply + 1] = Window(Size.MEDIUM, "blue");
+            windows[supply + 1] = Window(Size.MEDIUM, "blue", houseTokenId);
             houses[houseTokenId].window = windows[supply + 1];
             houses[houseTokenId].windowURI = supply + 1;
+            ownedWindows[msg.sender].push(supply+1);
         }else if(currentSize == Size.MEDIUM){
-            windows[houses[houseTokenId].windowURI] = Window(Size.LARGE, "grey");
+            windows[houses[houseTokenId].windowURI] = Window(Size.LARGE, "grey", houseTokenId);
             houses[houseTokenId].window = windows[houses[houseTokenId].windowURI];
         }else if(currentSize == Size.LARGE){
-            windows[houses[houseTokenId].windowURI]  = Window(Size.LARGE, "black");
+            windows[houses[houseTokenId].windowURI]  = Window(Size.LARGE, "black", houseTokenId);
             houses[houseTokenId].window = windows[houses[houseTokenId].windowURI];
         }
     }
@@ -71,11 +96,12 @@ contract Realty is ERC721Enumerable, Ownable {
         uint8 currentLevel = houses[houseTokenId].door.level;
         if( currentLevel == 1) {
             _safeMint(msg.sender, supply + 1);
-            doors[supply + 1] = Door(2, "grey");
+            doors[supply + 1] = Door(2, "grey", houseTokenId);
             houses[houseTokenId].door = doors[supply + 1];
             houses[houseTokenId].doorURI = supply + 1;
+            ownedDoors[msg.sender].push(supply+1);
         }else {
-            doors[houses[houseTokenId].doorURI] = Door(currentLevel+1, "black");
+            doors[houses[houseTokenId].doorURI] = Door(currentLevel+1, "black", houseTokenId);
             houses[houseTokenId].door = doors[houses[houseTokenId].doorURI];
         }
     }
@@ -109,4 +135,3 @@ contract Realty is ERC721Enumerable, Ownable {
     }
 
 }
-
